@@ -8,10 +8,9 @@ pub enum Instruction {
     Alloc {
         out: ValueId,
         storage: Storage,
-        t_id: TypeId,
         init: Option<ValueId>,
     },
-    IAdd(ValueId, TypeId, ValueId, ValueId),
+    IAdd(ValueId, ValueId, ValueId),
     IEqual(ValueId, ValueId, ValueId),
     Call(Option<ValueId>, FunctionId, Vec<ValueId>),
     Load {

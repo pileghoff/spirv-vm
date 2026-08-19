@@ -62,18 +62,12 @@ fn parse_block(
             }
             rspirv::spirv::Op::Variable => {
                 let v_id: ValueId = inst.result_id.unwrap().into();
-                let t_id: TypeId = inst.result_type.unwrap().into();
                 let storage: Storage = inst.operands[0].clone().into();
-                let init: Option<ValueId> = if let Some(v) = inst.operands.get(1) {
-                    Some((v).try_into().unwrap())
-                } else {
-                    None
-                };
+                let init: Option<ValueId> = inst.operands.get(1).map(|v| (v).try_into().unwrap());
 
                 instructions.push(Instruction::Alloc {
                     out: v_id,
                     storage,
-                    t_id,
                     init,
                 });
             }
@@ -89,10 +83,9 @@ fn parse_block(
             }
             rspirv::spirv::Op::IAdd => {
                 let v_id = inst.result_id.unwrap().into();
-                let t_id = inst.result_type.unwrap().into();
                 let op1 = (&inst.operands[0]).try_into().unwrap();
                 let op2 = (&inst.operands[1]).try_into().unwrap();
-                instructions.push(Instruction::IAdd(v_id, t_id, op1, op2));
+                instructions.push(Instruction::IAdd(v_id, op1, op2));
             }
             rspirv::spirv::Op::IEqual => {
                 let v_id = inst.result_id.unwrap().into();
