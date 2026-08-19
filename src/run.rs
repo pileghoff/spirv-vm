@@ -1,7 +1,9 @@
 use crate::id_types::{BlockId, FunctionId, TypeId, ValueId};
+use crate::instructions::Instruction;
+use crate::program::{Program, Terminator};
 use std::{collections::HashMap, thread::sleep, time::Duration};
 
-use crate::emu_types::*;
+use crate::types::*;
 
 pub fn run(mut program: Program) {
     println!("{:?}", program);

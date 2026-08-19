@@ -1,5 +1,7 @@
-use crate::emu_types::*;
 use crate::id_types::{BlockId, FunctionId, TypeId, ValueId};
+use crate::instructions::Instruction;
+use crate::program::{Block, Function, Program, Terminator};
+use crate::types::*;
 use std::collections::{HashMap, VecDeque};
 use std::io::Read;
 use std::{fs::File, io::BufReader};

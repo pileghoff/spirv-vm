@@ -1,7 +1,9 @@
-mod emu_parse;
-mod emu_run;
-mod emu_types;
 mod id_types;
+mod instructions;
+mod parse;
+mod program;
+mod run;
+mod types;
 
 use clap::Parser;
 
@@ -17,6 +19,6 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    let prog = emu_parse::parse(&args.path);
-    emu_run::run(prog);
+    let prog = parse::parse(&args.path);
+    run::run(prog);
 }
