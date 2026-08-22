@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
 use crate::{
-    id_types::{BlockId, FunctionId, TypeId, ValueId},
+    id_types::{BlockId, FunctionId, MemValueId, TypeId, ValueId},
     instructions::Instruction,
-    types::{RuntimeValue, Storage, Type},
+    memory_store::MemoryStore,
+    types::{Pointer, RuntimeValue, Storage, Type},
 };
 
 #[derive(Debug, Clone)]
@@ -42,7 +43,7 @@ pub struct Program {
     pub current_block: BlockId,
     pub current_block_index: usize,
     pub function_stack: Vec<(BlockId, usize, Option<ValueId>)>,
-    pub function_memory: Vec<HashMap<ValueId, RuntimeValue>>,
+    pub function_memory: Vec<MemoryStore>,
     pub typemap: HashMap<TypeId, Type>,
     pub blocks: HashMap<BlockId, Block>,
     pub values: HashMap<ValueId, RuntimeValue>,
@@ -83,17 +84,22 @@ impl Program {
             return_value_id.clone(),
         ));
         for (arg_in, arg_out) in f.args.iter().zip(args.iter()) {
+            println!("%{arg_in}: %{arg_out}");
             self.values.insert(*arg_in, self.read(arg_out).unwrap());
         }
         self.current_block = *f.blocks.first().unwrap();
         self.current_block_index = 0;
+        self.function_memory
+            .push(MemoryStore::new(Storage::Function));
     }
 
     pub fn pop_func(&mut self, out_id: Option<ValueId>) {
         if let Some((b_id, i, r_id)) = self.function_stack.pop() {
+            self.function_memory.pop();
             self.current_block = b_id;
-            self.current_block_index = i + 1;
+            self.current_block_index = i;
             if let Some(r_out_id) = out_id {
+                println!("Return %{r_out_id} into %{}", r_id.unwrap());
                 self.values.insert(
                     r_id.unwrap(),
                     self.values.clone().get(&r_out_id).unwrap().clone(),
@@ -128,15 +134,22 @@ impl Program {
     }
 
     pub fn mem_write(&mut self, ptr: &ValueId, val: &ValueId) {
+        println!("Memwrite: {} -> {}", val, ptr);
+
         let ptr = self.read(ptr).unwrap();
         let val = self.read(val).unwrap();
+        println!("Memwrite: {:?} -> {:?}", val, ptr);
+        self.vals();
 
         match ptr {
-            RuntimeValue::Pointer {
-                storage: Storage::Function,
-                id,
-            } => {
-                self.function_memory.last_mut().unwrap().insert(id, val);
+            RuntimeValue::Pointer(pointer) => {
+                for store in self.function_memory.iter_mut() {
+                    if store.id == pointer.storage_id {
+                        return store.write(pointer, val);
+                    }
+                }
+
+                panic!();
             }
             _ => panic!("Incorrect pointer: {:?}", ptr),
         };
@@ -146,18 +159,36 @@ impl Program {
         let ptr = self.read(ptr).unwrap();
 
         match ptr {
-            RuntimeValue::Pointer {
-                storage: Storage::Function,
-                id,
-            } => Some(
-                self.function_memory
-                    .last()
-                    .unwrap()
-                    .get(&id)
-                    .unwrap()
-                    .clone(),
-            ),
-            _ => None,
+            RuntimeValue::Pointer(pointer) => {
+                for store in self.function_memory.iter() {
+                    if store.id == pointer.storage_id {
+                        return store.read(pointer);
+                    }
+                }
+                panic!(
+                    "Missing id {} in {:?}",
+                    pointer.id,
+                    self.function_memory.iter().map(|v| v.id)
+                );
+            }
+            _ => panic!("Incorrect pointer: {:?}", ptr),
         }
+    }
+
+    pub fn mem_alloc(&mut self, storage: Storage, init: Option<RuntimeValue>) -> RuntimeValue {
+        if storage == Storage::Function {
+            self.function_memory.last_mut().unwrap().alloc(init).into()
+        } else {
+            panic!()
+        }
+    }
+
+    pub fn find_valueid_for_name(&self, name: &str) -> Option<ValueId> {
+        self.values_name
+            .iter()
+            .filter(|p| p.1 == name)
+            .collect::<Vec<_>>()
+            .first()
+            .map(|p| *p.0)
     }
 }

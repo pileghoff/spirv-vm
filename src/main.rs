@@ -1,5 +1,6 @@
 mod id_types;
 mod instructions;
+mod memory_store;
 mod parse;
 mod program;
 mod run;
@@ -19,6 +20,6 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    let prog = parse::parse(&args.path);
-    run::run(prog);
+    let mut prog = parse::parse(&args.path);
+    run::run(&mut prog);
 }

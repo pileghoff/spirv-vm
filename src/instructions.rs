@@ -1,5 +1,5 @@
 use crate::{
-    id_types::{FunctionId, TypeId, ValueId},
+    id_types::{FunctionId, ValueId},
     types::Storage,
 };
 
@@ -12,6 +12,10 @@ pub enum Instruction {
     },
     IAdd(ValueId, ValueId, ValueId),
     IEqual(ValueId, ValueId, ValueId),
+    ILessThan(ValueId, ValueId, ValueId),
+    IGreaterThan(ValueId, ValueId, ValueId),
+    ILessThanEq(ValueId, ValueId, ValueId),
+    IGreaterThanEq(ValueId, ValueId, ValueId),
     Call(Option<ValueId>, FunctionId, Vec<ValueId>),
     Load {
         out: ValueId,
@@ -20,5 +24,10 @@ pub enum Instruction {
     Store {
         from: ValueId,
         ptr: ValueId,
+    },
+    CreateInnerPointer {
+        out: ValueId,
+        base: ValueId,
+        offsets: Vec<ValueId>,
     },
 }

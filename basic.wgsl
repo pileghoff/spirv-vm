@@ -1,6 +1,5 @@
-
-@compute @workgroup_size(1)
-fn main() {
-    var a: i32 = 0;
-	var b: i32 = a + 1;
-}
+            @compute @workgroup_size(1)
+            fn main() {
+                var a = vec2();
+                a.x = 2;
+            }

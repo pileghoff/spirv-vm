@@ -41,6 +41,18 @@ macro_rules! id_type {
             }
         }
 
+        impl From<usize> for $id {
+            fn from(value: usize) -> Self {
+                Self(value as GenericId)
+            }
+        }
+
+        impl From<$id> for usize {
+            fn from(value: $id) -> usize {
+                value.0
+            }
+        }
+
         impl TryFrom<&rspirv::dr::Operand> for $id {
             type Error = TypeConversionError;
 
@@ -61,3 +73,4 @@ id_type!(FunctionId);
 id_type!(TypeId);
 id_type!(BlockId);
 id_type!(ValueId);
+id_type!(MemValueId);
