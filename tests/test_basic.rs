@@ -340,3 +340,75 @@ fn test_nested_struct() {
     let c: ValueId = program.find_valueid_for_name("c").unwrap();
     assert_eq!(program.mem_read(&c).unwrap(), 10u32.into());
 }
+
+#[test]
+fn test_nested_struct_reassign_member() {
+    let program = run_source(
+        "
+            struct Foo{
+              bar: u32,
+              baz: u32,
+            }
+
+            struct FooFoo{
+              bar: Foo,
+              baz: u32,
+            }
+
+            @compute @workgroup_size(1)
+            fn main() {
+                var a = FooFoo(Foo(2, 4), 6);
+                a.baz = 2;
+                a.bar.baz = 3;
+
+                var b = FooFoo(Foo(2, 4), 6);
+                b.bar = Foo(999, 31);
+
+                var c = FooFoo(Foo(2, 4), 6);
+                c = FooFoo(Foo(1,2),3);
+            }
+        ",
+    );
+
+    assert_eq!(
+        program
+            .mem_read(&program.find_valueid_for_name("a").unwrap())
+            .unwrap(),
+        RuntimeValue::Struct {
+            members: vec![
+                RuntimeValue::Struct {
+                    members: vec![2u32.into(), 3u32.into()]
+                },
+                2u32.into()
+            ]
+        }
+    );
+
+    assert_eq!(
+        program
+            .mem_read(&program.find_valueid_for_name("b").unwrap())
+            .unwrap(),
+        RuntimeValue::Struct {
+            members: vec![
+                RuntimeValue::Struct {
+                    members: vec![999u32.into(), 31u32.into()]
+                },
+                6u32.into()
+            ]
+        }
+    );
+
+    assert_eq!(
+        program
+            .mem_read(&program.find_valueid_for_name("c").unwrap())
+            .unwrap(),
+        RuntimeValue::Struct {
+            members: vec![
+                RuntimeValue::Struct {
+                    members: vec![1u32.into(), 2u32.into()]
+                },
+                3u32.into()
+            ]
+        }
+    );
+}

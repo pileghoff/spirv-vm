@@ -68,8 +68,19 @@ impl MemoryStore {
         match value {
             RuntimeValue::Vec { lenght, contents } => {
                 let mut contents = contents.clone();
-                contents[offset] = new_value.try_into().unwrap();
+                let val = contents[offset].clone().into();
+                contents[offset] = self
+                    .mem_modify_inner(offsets, val, new_value)
+                    .try_into()
+                    .unwrap();
                 RuntimeValue::Vec { lenght, contents }
+            }
+
+            RuntimeValue::Struct { members } => {
+                let mut members = members.clone();
+                let value = members[offset].clone();
+                members[offset] = self.mem_modify_inner(offsets, value, new_value);
+                RuntimeValue::Struct { members }
             }
             _ => panic!(),
         }
