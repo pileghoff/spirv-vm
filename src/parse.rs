@@ -277,23 +277,33 @@ fn parse_module(module: rspirv::dr::Module) -> Program {
 
                 let tid = inst.result_type.unwrap().into();
                 let t = program.typemap.get(&tid).unwrap();
-                let contents = inst
-                    .operands
-                    .iter()
-                    .map(|v| {
-                        let vid: ValueId = v.try_into().unwrap();
-                        program.read(&vid).unwrap().try_into().unwrap()
-                    })
-                    .collect();
 
                 let v: RuntimeValue = match t {
-                    Type::Vec { lenght, inner } => RuntimeValue::Vec {
-                        lenght: *lenght,
-                        contents,
-                    },
-                    Type::Struct { members } => RuntimeValue::Struct {
-                        members: contents.iter().cloned().map(|v| v.into()).collect(),
-                    },
+                    Type::Vec { lenght, inner } => {
+                        let contents = inst
+                            .operands
+                            .iter()
+                            .map(|v| {
+                                let vid: ValueId = v.try_into().unwrap();
+                                program.read(&vid).unwrap().try_into().unwrap()
+                            })
+                            .collect();
+                        RuntimeValue::Vec {
+                            lenght: *lenght,
+                            contents,
+                        }
+                    }
+                    Type::Struct { members } => {
+                        let members = inst
+                            .operands
+                            .iter()
+                            .map(|v| {
+                                let vid: ValueId = v.try_into().unwrap();
+                                program.read(&vid).unwrap()
+                            })
+                            .collect();
+                        RuntimeValue::Struct { members }
+                    }
                     _ => panic!("Failed to handle type: {:?}", t),
                 };
 

@@ -37,7 +37,12 @@ impl MemoryStore {
         }
         let offset = offsets.remove(0);
         match value {
-            RuntimeValue::Vec { lenght, contents } => Some(contents[offset].clone().into()),
+            RuntimeValue::Vec { lenght, contents } => {
+                self.mem_read_inner(offsets, contents[offset].clone().into())
+            }
+            RuntimeValue::Struct { members } => {
+                self.mem_read_inner(offsets, members[offset].clone())
+            }
             _ => panic!(),
         }
     }
@@ -45,7 +50,7 @@ impl MemoryStore {
     pub fn read(&self, pointer: Pointer) -> Option<RuntimeValue> {
         let index: usize = pointer.id.into();
         match self.objects.get(index) {
-            Some(v) => self.mem_read_inner(pointer.offsets, v.clone()),
+            Some(v) => self.mem_read_inner(pointer.offsets.clone(), v.clone()),
             None => None,
         }
     }

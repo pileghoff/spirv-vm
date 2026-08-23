@@ -300,3 +300,43 @@ fn test_struct() {
         }
     );
 }
+
+#[test]
+fn test_nested_struct() {
+    let program = run_source(
+        "
+            struct Foo{
+              bar: u32,
+              baz: u32,
+            }
+
+            struct FooFoo{
+              bar: Foo,
+              baz: u32,
+            }
+
+            @compute @workgroup_size(1)
+            fn main() {
+                var a = FooFoo(Foo(2, 4), 6);
+                var b = FooFoo(Foo(4, 4), 6);
+                var c = b.baz + a.bar.baz; // 4 + 6 = 10
+            }
+        ",
+    );
+
+    let a: ValueId = program.find_valueid_for_name("a").unwrap();
+    assert_eq!(
+        program.mem_read(&a).unwrap(),
+        RuntimeValue::Struct {
+            members: vec![
+                RuntimeValue::Struct {
+                    members: vec![2u32.into(), 4u32.into()]
+                },
+                6u32.into()
+            ]
+        }
+    );
+
+    let c: ValueId = program.find_valueid_for_name("c").unwrap();
+    assert_eq!(program.mem_read(&c).unwrap(), 10u32.into());
+}

@@ -69,32 +69,13 @@ pub fn run(program: &mut Program) {
                             .iter()
                             .map(|offset_id| program.read(offset_id).unwrap().try_into().unwrap())
                             .collect();
-                        let base_val = program.mem_read(&base).unwrap();
-                        match base_val {
-                            RuntimeValue::Vec { lenght, contents } => {
-                                let ptr = RuntimeValue::Pointer(Pointer {
-                                    storage_id,
-                                    id: base_ptr,
-                                    offsets,
-                                });
+                        let ptr = RuntimeValue::Pointer(Pointer {
+                            storage_id,
+                            id: base_ptr,
+                            offsets,
+                        });
 
-                                println!("----");
-                                println!("Create composite pointer %{} {:?}", out, ptr);
-                                println!("----");
-                                program.values.insert(out, ptr);
-                            }
-                            RuntimeValue::Pointer(Pointer {
-                                storage_id: _,
-                                id: _,
-                                offsets: _,
-                            })
-                            | RuntimeValue::Struct { members: _ }
-                            | RuntimeValue::Null
-                            | RuntimeValue::Void
-                            | RuntimeValue::Scalar(_) => {
-                                panic!("Unsupported type for access chain: {:?}", base)
-                            }
-                        }
+                        program.values.insert(out, ptr);
                     }
                     Instruction::Alloc { out, storage, init } => {
                         if let Some(init) = init {
