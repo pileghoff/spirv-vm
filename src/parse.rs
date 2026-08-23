@@ -234,6 +234,16 @@ fn parse_module(module: rspirv::dr::Module) -> Program {
             rspirv::spirv::Op::TypeFunction => {
                 println!("We dont care aobut function types");
             }
+            rspirv::spirv::Op::TypeStruct => {
+                let i = inst.result_id.unwrap().into();
+                let members: Vec<TypeId> = inst
+                    .operands
+                    .iter()
+                    .map(|op| op.try_into().unwrap())
+                    .collect();
+
+                program.typemap.insert(i, Type::Struct { members });
+            }
 
             rspirv::spirv::Op::TypeVector => {
                 let i = inst.result_id.unwrap().into();
@@ -280,6 +290,9 @@ fn parse_module(module: rspirv::dr::Module) -> Program {
                     Type::Vec { lenght, inner } => RuntimeValue::Vec {
                         lenght: *lenght,
                         contents,
+                    },
+                    Type::Struct { members } => RuntimeValue::Struct {
+                        members: contents.iter().cloned().map(|v| v.into()).collect(),
                     },
                     _ => panic!("Failed to handle type: {:?}", t),
                 };

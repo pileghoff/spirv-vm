@@ -88,6 +88,7 @@ pub fn run(program: &mut Program) {
                                 id: _,
                                 offsets: _,
                             })
+                            | RuntimeValue::Struct { members: _ }
                             | RuntimeValue::Null
                             | RuntimeValue::Void
                             | RuntimeValue::Scalar(_) => {

@@ -275,3 +275,28 @@ fn test_vec2_math() {
         }
     );
 }
+
+#[test]
+fn test_struct() {
+    let program = run_source(
+        "
+            struct Foo{
+              bar: u32,
+              baz: u32,
+            }
+
+            @compute @workgroup_size(1)
+            fn main() {
+                var a = Foo(2, 4);
+            }
+        ",
+    );
+
+    let a: ValueId = program.find_valueid_for_name("a").unwrap();
+    assert_eq!(
+        program.mem_read(&a).unwrap(),
+        RuntimeValue::Struct {
+            members: vec![2u32.into(), 4u32.into()]
+        }
+    );
+}

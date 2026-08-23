@@ -27,6 +27,7 @@ pub enum Type {
     Int { bits: u32, signed: bool },
     Pointer { storage: Storage, inner: TypeId },
     Vec { lenght: usize, inner: TypeId },
+    Struct { members: Vec<TypeId> },
 }
 
 impl From<RuntimeScalarValue> for RuntimeValue {
@@ -123,6 +124,9 @@ pub enum RuntimeValue {
         lenght: usize,
         contents: Vec<RuntimeScalarValue>,
     },
+    Struct {
+        members: Vec<RuntimeValue>,
+    },
 }
 
 #[macro_export]
@@ -176,6 +180,15 @@ impl RuntimeValue {
                 offsets,
             }) => format!("Pointer[{:?}] to {:?}", storage_id, id).to_string(),
 
+            RuntimeValue::Struct { members } => format!(
+                "Struct [{}]",
+                members
+                    .iter()
+                    .map(|v| { v.pretty(program) })
+                    .collect::<Vec<String>>()
+                    .join(",")
+            )
+            .to_string(),
             RuntimeValue::Vec { lenght, contents } => format!(
                 "Vec{lenght} [{}]",
                 contents
