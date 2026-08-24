@@ -153,7 +153,7 @@ vec_from_type!(u16);
 vec_from_type!(u8);
 
 impl RuntimeValue {
-    pub fn pretty(&self, program: &Program) -> String {
+    pub fn pretty(&self) -> String {
         match self {
             RuntimeValue::Null => String::from("Null"),
             RuntimeValue::Void => String::from("Void"),
@@ -184,7 +184,7 @@ impl RuntimeValue {
                 "Struct [{}]",
                 members
                     .iter()
-                    .map(|v| { v.pretty(program) })
+                    .map(|v| { v.pretty() })
                     .collect::<Vec<String>>()
                     .join(",")
             )
@@ -195,7 +195,7 @@ impl RuntimeValue {
                     .iter()
                     .map(|v| {
                         let v: RuntimeValue = v.clone().into();
-                        v.pretty(program)
+                        v.pretty()
                     })
                     .collect::<Vec<String>>()
                     .join(",")

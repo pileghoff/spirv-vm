@@ -2,9 +2,9 @@ use naga::{
     back::spv::{self, Options, WriterFlags},
     valid::ShaderStages,
 };
-use spirvemu::parse::parse_words;
 use spirvemu::run::run;
 use spirvemu::types::*;
+use spirvemu::{execution_context::ExecutionContex, parse::parse_words};
 use spirvemu::{id_types::*, program::Program};
 
 fn compile(source: &str) -> Vec<u32> {
@@ -22,11 +22,10 @@ fn compile(source: &str) -> Vec<u32> {
     spv::write_vec(&module, &module_info, &options, None).unwrap()
 }
 
-fn run_source(source: &str) -> Program {
+fn run_source(source: &str) -> ExecutionContex {
     let spirv = compile(source);
-    let mut program = parse_words(spirv);
-    run(&mut program);
-    program
+    let program = parse_words(spirv);
+    run(program)
 }
 
 #[test]

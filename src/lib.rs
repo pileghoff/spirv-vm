@@ -1,3 +1,4 @@
+pub mod execution_context;
 pub mod id_types;
 pub mod instructions;
 pub mod memory_store;

@@ -1,10 +1,9 @@
-use crate::id_types::{BlockId, FunctionId, MemValueId, TypeId, ValueId};
+use crate::execution_context::ExecutionNext;
 use crate::instructions::Instruction;
-use crate::memory_store::MemoryStore;
-use crate::program::{Program, ProgramNext, Terminator};
-use std::{collections::HashMap, thread::sleep, time::Duration};
 
-use crate::types::*;
+use crate::program::{Program, Terminator};
+
+use crate::{execution_context::ExecutionContex, types::*};
 
 #[macro_export]
 macro_rules! matching_scalar {
@@ -26,38 +25,31 @@ fn val_to_i64(value: &RuntimeValue) -> Option<i64> {
     }
 }
 
-pub fn run(program: &mut Program) {
+pub fn run(program: Program) -> ExecutionContex {
     println!("{:?}", program);
     println!("Before:");
     program.vals();
-
-    program.function_memory = vec![MemoryStore::new(Storage::Function)];
-    program.function_stack = Vec::new();
-    program.current_block = {
-        let f = program.functions.get(&program.entry_point).unwrap();
-        *f.blocks.first().unwrap()
-    };
-    program.current_block_index = 0;
+    let mut context = ExecutionContex::new(program);
 
     loop {
         // Execute block
-        match program.next() {
-            Some(ProgramNext::Instruction(i)) => {
-                println!("{:?} [{}]", i, program.current_block);
+        match context.next() {
+            Some(ExecutionNext::Instruction(i)) => {
+                println!("{:?} [{}]", i, context.current_block);
                 match i {
                     Instruction::Call(r_id, f_id, args) => {
-                        program.push_func(&f_id, args, r_id);
-                        println!("Call function {f_id} -> {}", program.current_block);
+                        context.push_func(&f_id, args, r_id);
+                        println!("Call function {f_id} -> {}", context.current_block);
                     }
                     Instruction::Store { from, ptr } => {
-                        program.mem_write(&ptr, &from);
+                        context.mem_write(&ptr, &from);
                     }
                     Instruction::Load { out, ptr } => {
-                        let val = program.mem_read(&ptr).unwrap();
-                        program.values.insert(out, val);
+                        let val = context.mem_read(&ptr).unwrap();
+                        context.values.insert(out, val);
                     }
                     Instruction::CreateInnerPointer { out, base, offsets } => {
-                        let (storage_id, base_ptr) = match program.read(&base) {
+                        let (storage_id, base_ptr) = match context.read(&base) {
                             Some(RuntimeValue::Pointer(Pointer {
                                 storage_id,
                                 id,
@@ -67,7 +59,7 @@ pub fn run(program: &mut Program) {
                         };
                         let offsets: Vec<usize> = offsets
                             .iter()
-                            .map(|offset_id| program.read(offset_id).unwrap().try_into().unwrap())
+                            .map(|offset_id| context.read(offset_id).unwrap().try_into().unwrap())
                             .collect();
                         let ptr = RuntimeValue::Pointer(Pointer {
                             storage_id,
@@ -75,61 +67,61 @@ pub fn run(program: &mut Program) {
                             offsets,
                         });
 
-                        program.values.insert(out, ptr);
+                        context.values.insert(out, ptr);
                     }
                     Instruction::Alloc { out, storage, init } => {
                         if let Some(init) = init {
-                            let init = program.read(&init);
-                            let ptr = program.mem_alloc(storage, init);
-                            program.write(&out, ptr);
+                            let init = context.read(&init);
+                            let ptr = context.mem_alloc(storage, init);
+                            context.write(&out, ptr);
                         } else {
                             todo!();
                         }
                     }
                     Instruction::IGreaterThan(v_id, op1, op2) => {
-                        let op1: i64 = val_to_i64(&program.read(&op1).unwrap()).unwrap();
-                        let op2: i64 = val_to_i64(&program.read(&op2).unwrap()).unwrap();
+                        let op1: i64 = val_to_i64(&context.read(&op1).unwrap()).unwrap();
+                        let op2: i64 = val_to_i64(&context.read(&op2).unwrap()).unwrap();
 
-                        program
+                        context
                             .values
                             .insert(v_id, RuntimeScalarValue::Bool(op1 > op2).into());
                     }
                     Instruction::IGreaterThanEq(v_id, op1, op2) => {
-                        let op1: i64 = val_to_i64(&program.read(&op1).unwrap()).unwrap();
-                        let op2: i64 = val_to_i64(&program.read(&op2).unwrap()).unwrap();
+                        let op1: i64 = val_to_i64(&context.read(&op1).unwrap()).unwrap();
+                        let op2: i64 = val_to_i64(&context.read(&op2).unwrap()).unwrap();
 
-                        program
+                        context
                             .values
                             .insert(v_id, RuntimeScalarValue::Bool(op1 >= op2).into());
                     }
 
                     Instruction::ILessThan(v_id, op1, op2) => {
-                        let op1: i64 = val_to_i64(&program.read(&op1).unwrap()).unwrap();
-                        let op2: i64 = val_to_i64(&program.read(&op2).unwrap()).unwrap();
+                        let op1: i64 = val_to_i64(&context.read(&op1).unwrap()).unwrap();
+                        let op2: i64 = val_to_i64(&context.read(&op2).unwrap()).unwrap();
 
-                        program
+                        context
                             .values
                             .insert(v_id, RuntimeScalarValue::Bool(op1 < op2).into());
                     }
                     Instruction::ILessThanEq(v_id, op1, op2) => {
-                        let op1: i64 = val_to_i64(&program.read(&op1).unwrap()).unwrap();
-                        let op2: i64 = val_to_i64(&program.read(&op2).unwrap()).unwrap();
+                        let op1: i64 = val_to_i64(&context.read(&op1).unwrap()).unwrap();
+                        let op2: i64 = val_to_i64(&context.read(&op2).unwrap()).unwrap();
 
-                        program
+                        context
                             .values
                             .insert(v_id, RuntimeScalarValue::Bool(op1 <= op2).into());
                     }
 
                     Instruction::IEqual(v_id, op1, op2) => {
-                        let op1: i64 = val_to_i64(&program.read(&op1).unwrap()).unwrap();
-                        let op2: i64 = val_to_i64(&program.read(&op2).unwrap()).unwrap();
+                        let op1: i64 = val_to_i64(&context.read(&op1).unwrap()).unwrap();
+                        let op2: i64 = val_to_i64(&context.read(&op2).unwrap()).unwrap();
 
-                        program
+                        context
                             .values
                             .insert(v_id, RuntimeScalarValue::Bool(op1 == op2).into());
                     }
                     Instruction::IAdd(v_id, op1, op2) => {
-                        let res = match (program.read(&op1).unwrap(), program.read(&op2).unwrap()) {
+                        let res = match (context.read(&op1).unwrap(), context.read(&op2).unwrap()) {
                             matching_scalar!(U8, op1, op2) => op1.wrapping_add(op2).into(),
                             matching_scalar!(U16, op1, op2) => op1.wrapping_add(op2).into(),
                             matching_scalar!(U32, op1, op2) => op1.wrapping_add(op2).into(),
@@ -141,26 +133,26 @@ pub fn run(program: &mut Program) {
                             (bad1, bad2) => panic!("Failed to add {:?} and {:?}", bad1, bad2),
                         };
 
-                        program.values.insert(v_id, res);
+                        context.values.insert(v_id, res);
                     }
                 }
             }
-            Some(ProgramNext::Terminator(t)) => {
+            Some(ExecutionNext::Terminator(t)) => {
                 println!("{:?}", t);
                 match t {
                     Terminator::Jump(b_id) => {
-                        program.jump(b_id);
+                        context.jump(b_id);
                     }
                     Terminator::Branch {
                         condition,
                         then_block,
                         else_block,
-                    } => match program.read(&condition) {
+                    } => match context.read(&condition) {
                         Some(RuntimeValue::Scalar(RuntimeScalarValue::Bool(cond))) => {
                             if cond {
-                                program.jump(then_block);
+                                context.jump(then_block);
                             } else {
-                                program.jump(else_block);
+                                context.jump(else_block);
                             }
                         }
                         _ => panic!("{:?}", condition),
@@ -171,7 +163,7 @@ pub fn run(program: &mut Program) {
                         default,
                     } => todo!(),
                     Terminator::Return(out_id) => {
-                        program.pop_func(out_id);
+                        context.pop_func(out_id);
                     }
                 }
             }
@@ -181,5 +173,7 @@ pub fn run(program: &mut Program) {
 
     println!("");
     println!("After:");
-    program.vals();
+    context.vals();
+
+    context
 }

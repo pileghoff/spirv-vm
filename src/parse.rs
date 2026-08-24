@@ -269,7 +269,7 @@ fn parse_module(module: rspirv::dr::Module) -> Program {
                     _ => panic!("Failed to handle type: {:?}", t),
                 }
                 .into();
-                println!("Constant %{i}: {:?}", v.pretty(&program));
+                println!("Constant %{i}: {:?}", v.pretty());
                 program.values.insert(i, v);
             }
             rspirv::spirv::Op::ConstantComposite => {
