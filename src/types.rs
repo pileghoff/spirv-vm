@@ -1,7 +1,6 @@
-use crate::id_types::{BlockId, FunctionId, MemValueId, TypeId, ValueId};
-use crate::program::Program;
+use crate::id_types::{MemValueId, TypeId};
 use miette::Report;
-use std::fmt::{Debug, format};
+use std::fmt::Debug;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Storage {
@@ -177,7 +176,7 @@ impl RuntimeValue {
             RuntimeValue::Pointer(Pointer {
                 storage_id,
                 id,
-                offsets,
+                offsets: _,
             }) => format!("Pointer[{:?}] to {:?}", storage_id, id).to_string(),
 
             RuntimeValue::Struct { members } => format!(

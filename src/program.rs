@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     id_types::{BlockId, FunctionId, TypeId, ValueId},
-    instructions::Instruction,
+    instructions::{Instruction, Terminator},
     types::{RuntimeValue, Type},
 };
 
@@ -10,22 +10,6 @@ use crate::{
 pub struct Block {
     pub instructions: Vec<Instruction>,
     pub terminator: Terminator,
-}
-
-#[derive(Debug, Clone)]
-pub enum Terminator {
-    Jump(BlockId),
-    Branch {
-        condition: ValueId,
-        then_block: BlockId,
-        else_block: BlockId,
-    },
-    Switch {
-        selector: ValueId,
-        cases: Vec<(i32, BlockId)>,
-        default: BlockId,
-    },
-    Return(Option<ValueId>),
 }
 
 #[derive(Debug, Clone)]
@@ -61,6 +45,6 @@ impl Program {
     }
 
     pub fn write(&mut self, id: &ValueId, value: RuntimeValue) {
-        self.values.insert(id.clone(), value);
+        self.values.insert(*id, value);
     }
 }

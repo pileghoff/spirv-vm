@@ -1,7 +1,7 @@
 use crate::execution_context::ExecutionNext;
-use crate::instructions::Instruction;
+use crate::instructions::{Instruction, Terminator};
 
-use crate::program::{Program, Terminator};
+use crate::program::Program;
 
 use crate::{execution_context::ExecutionContex, types::*};
 
@@ -53,7 +53,7 @@ pub fn run(program: Program) -> ExecutionContex {
                             Some(RuntimeValue::Pointer(Pointer {
                                 storage_id,
                                 id,
-                                offsets,
+                                offsets: _,
                             })) => (storage_id, id),
                             _ => todo!(),
                         };
@@ -158,9 +158,9 @@ pub fn run(program: Program) -> ExecutionContex {
                         _ => panic!("{:?}", condition),
                     },
                     Terminator::Switch {
-                        selector,
-                        cases,
-                        default,
+                        selector: _,
+                        cases: _,
+                        default: _,
                     } => todo!(),
                     Terminator::Return(out_id) => {
                         context.pop_func(out_id);
@@ -171,7 +171,7 @@ pub fn run(program: Program) -> ExecutionContex {
         }
     }
 
-    println!("");
+    println!();
     println!("After:");
     context.vals();
 

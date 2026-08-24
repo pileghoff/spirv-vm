@@ -1,6 +1,6 @@
 use crate::id_types::{BlockId, FunctionId, TypeId, ValueId};
-use crate::instructions::Instruction;
-use crate::program::{Block, Function, Program, Terminator};
+use crate::instructions::{Instruction, Terminator};
+use crate::program::{Block, Function, Program};
 use crate::types::*;
 use std::collections::{HashMap, VecDeque};
 use std::io::Read;
@@ -30,8 +30,8 @@ fn op_to_string(op: &rspirv::dr::Operand) -> Option<String> {
 
 fn parse_block(
     insts: &mut VecDeque<rspirv::dr::Instruction>,
-    valuemap: &HashMap<ValueId, RuntimeValue>,
-    typemap: &HashMap<TypeId, Type>,
+    _valuemap: &HashMap<ValueId, RuntimeValue>,
+    _typemap: &HashMap<TypeId, Type>,
 ) -> Block {
     let mut instructions = Vec::new();
     let terminator: Terminator = loop {
@@ -170,7 +170,7 @@ fn parse_func(
             rspirv::spirv::Op::FunctionParameter => {
                 let t_id = inst.result_type.unwrap().into();
                 let v_id = inst.result_id.unwrap().into();
-                let t = typemap.get(&t_id).unwrap().clone();
+                let _t = typemap.get(&t_id).unwrap().clone();
                 func.args.push(v_id);
             }
             _ => println!("Unknown inst while parsing function: {:?}", inst),
@@ -279,7 +279,7 @@ fn parse_module(module: rspirv::dr::Module) -> Program {
                 let t = program.typemap.get(&tid).unwrap();
 
                 let v: RuntimeValue = match t {
-                    Type::Vec { lenght, inner } => {
+                    Type::Vec { lenght, inner: _ } => {
                         let contents = inst
                             .operands
                             .iter()
@@ -293,7 +293,7 @@ fn parse_module(module: rspirv::dr::Module) -> Program {
                             contents,
                         }
                     }
-                    Type::Struct { members } => {
+                    Type::Struct { members: _ } => {
                         let members = inst
                             .operands
                             .iter()

@@ -37,7 +37,7 @@ impl MemoryStore {
         }
         let offset = offsets.remove(0);
         match value {
-            RuntimeValue::Vec { lenght, contents } => {
+            RuntimeValue::Vec { lenght: _, contents } => {
                 self.mem_read_inner(offsets, contents[offset].clone().into())
             }
             RuntimeValue::Struct { members } => {

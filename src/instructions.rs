@@ -1,7 +1,6 @@
-use crate::{
-    id_types::{FunctionId, ValueId},
-    types::Storage,
-};
+use crate::types::Storage;
+
+use crate::id_types::{BlockId, FunctionId, ValueId};
 
 #[derive(Debug, Clone)]
 pub enum Instruction {
@@ -30,4 +29,20 @@ pub enum Instruction {
         base: ValueId,
         offsets: Vec<ValueId>,
     },
+}
+
+#[derive(Debug, Clone)]
+pub enum Terminator {
+    Jump(BlockId),
+    Branch {
+        condition: ValueId,
+        then_block: BlockId,
+        else_block: BlockId,
+    },
+    Switch {
+        selector: ValueId,
+        cases: Vec<(i32, BlockId)>,
+        default: BlockId,
+    },
+    Return(Option<ValueId>),
 }

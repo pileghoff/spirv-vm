@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
 use crate::{
-    id_types::{BlockId, FunctionId, MemValueId, TypeId, ValueId},
-    instructions::Instruction,
+    id_types::{BlockId, FunctionId, ValueId},
+    instructions::{Instruction, Terminator},
     memory_store::MemoryStore,
-    program::{Program, Terminator},
-    types::{Pointer, RuntimeValue, Storage, Type},
+    program::Program,
+    types::{RuntimeValue, Storage},
 };
 
 pub struct ExecutionContex {
@@ -69,7 +69,7 @@ impl ExecutionContex {
         self.function_stack.push((
             self.current_block,
             self.current_block_index,
-            return_value_id.clone(),
+            return_value_id,
         ));
         for (arg_in, arg_out) in f.args.iter().zip(args.iter()) {
             println!("%{arg_in}: %{arg_out}");
@@ -128,7 +128,7 @@ impl ExecutionContex {
     }
 
     pub fn write(&mut self, id: &ValueId, value: RuntimeValue) {
-        self.values.insert(id.clone(), value);
+        self.values.insert(*id, value);
     }
 
     pub fn mem_write(&mut self, ptr: &ValueId, val: &ValueId) {
