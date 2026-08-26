@@ -24,7 +24,7 @@ fn compile(source: &str) -> Vec<u32> {
 
 fn run_source(source: &str) -> ExecutionContex {
     let spirv = compile(source);
-    let program = parse_words(spirv);
+    let program = parse_words(spirv).unwrap();
     run(program)
 }
 

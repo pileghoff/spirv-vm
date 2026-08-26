@@ -4,4 +4,13 @@
 This is just a for fun project.
 Im trying to run Spirv compute shaders on CPU.
 
-Currently its only single threaded workloads with 10% of the instructions.
+--- Todo ---
+
+ ~ Switch/Phi
+ ~ Matrices
+ ~ Floats
+ ~ More address spaces (private, workgroup, uniform etc.)
+ ~ Bindings
+ ~ Multiple threads (incl workgroups, invocation id etc.)
+ ~ Syncronazation (barriers, atomics etc.)
+ ~ DAP

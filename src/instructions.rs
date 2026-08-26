@@ -29,6 +29,7 @@ pub enum Instruction {
         base: ValueId,
         offsets: Vec<ValueId>,
     },
+    Line(u32),
 }
 
 #[derive(Debug, Clone)]

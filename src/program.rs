@@ -27,6 +27,8 @@ pub struct Program {
     pub blocks: HashMap<BlockId, Block>,
     pub values: HashMap<ValueId, RuntimeValue>,
     pub values_name: HashMap<ValueId, String>,
+
+    pub source: Option<String>,
 }
 
 impl Program {
