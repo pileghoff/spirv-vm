@@ -150,6 +150,7 @@ vec_from_type!(u64);
 vec_from_type!(u32);
 vec_from_type!(u16);
 vec_from_type!(u8);
+vec_from_type!(bool);
 
 impl RuntimeValue {
     pub fn pretty(&self) -> String {

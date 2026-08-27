@@ -63,6 +63,25 @@ fn test_add_vars_u32() {
 }
 
 #[test]
+fn test_sub() {
+    let program = run_source(
+        "
+    @compute @workgroup_size(1)
+    fn main() {
+        var a: u32 = 10;
+        a--;
+    }",
+    );
+
+    assert_eq!(
+        program
+            .mem_read(&program.find_valueid_for_name("a").unwrap())
+            .unwrap(),
+        9u32.into()
+    );
+}
+
+#[test]
 fn test_function_ret_into_var() {
     let program = run_source(
         "
@@ -409,5 +428,36 @@ fn test_nested_struct_reassign_member() {
                 3u32.into()
             ]
         }
+    );
+}
+
+#[test]
+fn test_while() {
+    let program = run_source(
+        "
+            @compute @workgroup_size(1)
+            fn main() {
+                var a = 10;
+                var b = 0;
+                while(a > 0) {
+                    a--;
+                    b++;
+                }
+            }
+        ",
+    );
+
+    assert_eq!(
+        program
+            .mem_read(&program.find_valueid_for_name("a").unwrap())
+            .unwrap(),
+        0.into()
+    );
+
+    assert_eq!(
+        program
+            .mem_read(&program.find_valueid_for_name("b").unwrap())
+            .unwrap(),
+        10.into()
     );
 }

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
     id_types::{BlockId, FunctionId, ValueId},
     instructions::{Instruction, Terminator},
-    memory_store::MemoryStore,
+    memory_store::{MemoryStore, mem_read_inner},
     program::Program,
     types::{Pointer, RuntimeScalarValue, RuntimeValue, Storage},
 };
@@ -27,6 +27,39 @@ pub enum ExecutionNext {
 }
 
 #[macro_export]
+macro_rules! match_scalar {
+    ( $v1:ident, $v2:ident, $op:expr ) => {
+        match ($v1, $v2) {
+            (RuntimeScalarValue::I8($v1), RuntimeScalarValue::I8($v2)) => {
+                Some(Into::<RuntimeScalarValue>::into($op))
+            }
+            (RuntimeScalarValue::I16($v1), RuntimeScalarValue::I16($v2)) => {
+                Some(Into::<RuntimeScalarValue>::into($op))
+            }
+            (RuntimeScalarValue::I32($v1), RuntimeScalarValue::I32($v2)) => {
+                Some(Into::<RuntimeScalarValue>::into($op))
+            }
+            (RuntimeScalarValue::I64($v1), RuntimeScalarValue::I64($v2)) => {
+                Some(Into::<RuntimeScalarValue>::into($op))
+            }
+            (RuntimeScalarValue::U8($v1), RuntimeScalarValue::U8($v2)) => {
+                Some(Into::<RuntimeScalarValue>::into($op))
+            }
+            (RuntimeScalarValue::U16($v1), RuntimeScalarValue::U16($v2)) => {
+                Some(Into::<RuntimeScalarValue>::into($op))
+            }
+            (RuntimeScalarValue::U32($v1), RuntimeScalarValue::U32($v2)) => {
+                Some(Into::<RuntimeScalarValue>::into($op))
+            }
+            (RuntimeScalarValue::U64($v1), RuntimeScalarValue::U64($v2)) => {
+                Some(Into::<RuntimeScalarValue>::into($op))
+            }
+            _ => None,
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! matching_scalar {
     ( $scalar:ident, $op1:ident, $op2:ident ) => {
         (
@@ -34,6 +67,16 @@ macro_rules! matching_scalar {
             RuntimeValue::Scalar(RuntimeScalarValue::$scalar($op2)),
         )
     };
+}
+
+fn scalar_val_to_i64(value: &RuntimeScalarValue) -> Option<i64> {
+    match value {
+        RuntimeScalarValue::I8(v) => Some((*v).into()),
+        RuntimeScalarValue::I16(v) => Some((*v).into()),
+        RuntimeScalarValue::I32(v) => Some((*v).into()),
+        RuntimeScalarValue::I64(v) => Some(*v),
+        _ => None,
+    }
 }
 
 fn val_to_i64(value: &RuntimeValue) -> Option<i64> {
@@ -218,6 +261,16 @@ impl ExecutionContex {
                     let val = self.mem_read(&ptr).unwrap();
                     self.values.insert(out, val);
                 }
+                Instruction::CopyInner {
+                    out,
+                    composite,
+                    offsets,
+                } => {
+                    let composite = self.read(&composite).unwrap();
+                    let res = mem_read_inner(offsets.clone(), composite).unwrap();
+                    println!("CopyInner %{:?}: {}", out, res.pretty());
+                    self.write(&out, res);
+                }
                 Instruction::CreateInnerPointer { out, base, offsets } => {
                     let (storage_id, base_ptr) = match self.read(&base) {
                         Some(RuntimeValue::Pointer(Pointer {
@@ -248,14 +301,14 @@ impl ExecutionContex {
                         todo!();
                     }
                 }
-                Instruction::IGreaterThan(v_id, op1, op2) => {
+                Instruction::GreaterThan(v_id, op1, op2) => {
                     let op1: i64 = val_to_i64(&self.read(&op1).unwrap()).unwrap();
                     let op2: i64 = val_to_i64(&self.read(&op2).unwrap()).unwrap();
 
                     self.values
                         .insert(v_id, RuntimeScalarValue::Bool(op1 > op2).into());
                 }
-                Instruction::IGreaterThanEq(v_id, op1, op2) => {
+                Instruction::GreaterThanEq(v_id, op1, op2) => {
                     let op1: i64 = val_to_i64(&self.read(&op1).unwrap()).unwrap();
                     let op2: i64 = val_to_i64(&self.read(&op2).unwrap()).unwrap();
 
@@ -263,14 +316,14 @@ impl ExecutionContex {
                         .insert(v_id, RuntimeScalarValue::Bool(op1 >= op2).into());
                 }
 
-                Instruction::ILessThan(v_id, op1, op2) => {
+                Instruction::LessThan(v_id, op1, op2) => {
                     let op1: i64 = val_to_i64(&self.read(&op1).unwrap()).unwrap();
                     let op2: i64 = val_to_i64(&self.read(&op2).unwrap()).unwrap();
 
                     self.values
                         .insert(v_id, RuntimeScalarValue::Bool(op1 < op2).into());
                 }
-                Instruction::ILessThanEq(v_id, op1, op2) => {
+                Instruction::LessThanEq(v_id, op1, op2) => {
                     let op1: i64 = val_to_i64(&self.read(&op1).unwrap()).unwrap();
                     let op2: i64 = val_to_i64(&self.read(&op2).unwrap()).unwrap();
 
@@ -278,27 +331,167 @@ impl ExecutionContex {
                         .insert(v_id, RuntimeScalarValue::Bool(op1 <= op2).into());
                 }
 
-                Instruction::IEqual(v_id, op1, op2) => {
-                    let op1: i64 = val_to_i64(&self.read(&op1).unwrap()).unwrap();
-                    let op2: i64 = val_to_i64(&self.read(&op2).unwrap()).unwrap();
+                Instruction::Equal(v_id, op1, op2) => {
+                    println!("{:?}", self);
+                    println!("{:?}", op1);
+                    let op1 = self.read(&op1).unwrap();
+                    let op2 = self.read(&op2).unwrap();
+                    let res: RuntimeValue = match (op1.clone(), op2.clone()) {
+                        (RuntimeValue::Scalar(v1), RuntimeValue::Scalar(v2)) => (v1 == v2).into(),
+                        (
+                            RuntimeValue::Vec {
+                                lenght: _,
+                                contents: op1,
+                            },
+                            RuntimeValue::Vec {
+                                lenght,
+                                contents: op2,
+                            },
+                        ) => op1
+                            .iter()
+                            .zip(op2.iter())
+                            .map(|(v1, v2)| v1 == v2)
+                            .collect::<Vec<_>>()
+                            .into(),
 
-                    self.values
-                        .insert(v_id, RuntimeScalarValue::Bool(op1 == op2).into());
-                }
-                Instruction::IAdd(v_id, op1, op2) => {
-                    let res = match (self.read(&op1).unwrap(), self.read(&op2).unwrap()) {
-                        matching_scalar!(U8, op1, op2) => op1.wrapping_add(op2).into(),
-                        matching_scalar!(U16, op1, op2) => op1.wrapping_add(op2).into(),
-                        matching_scalar!(U32, op1, op2) => op1.wrapping_add(op2).into(),
-                        matching_scalar!(U64, op1, op2) => op1.wrapping_add(op2).into(),
-                        matching_scalar!(I8, op1, op2) => op1.wrapping_add(op2).into(),
-                        matching_scalar!(I16, op1, op2) => op1.wrapping_add(op2).into(),
-                        matching_scalar!(I32, op1, op2) => op1.wrapping_add(op2).into(),
-                        matching_scalar!(I64, op1, op2) => op1.wrapping_add(op2).into(),
-                        (bad1, bad2) => panic!("Failed to add {:?} and {:?}", bad1, bad2),
+                        _ => panic!("Mismatched types {:?}, {:?}", op1, op2),
                     };
 
                     self.values.insert(v_id, res);
+                }
+                Instruction::Add(v_id, op1, op2) => {
+                    let res: RuntimeValue =
+                        match (self.read(&op1).unwrap(), self.read(&op2).unwrap()) {
+                            (RuntimeValue::Scalar(op1), RuntimeValue::Scalar(op2)) => {
+                                match_scalar!(op1, op2, op1.wrapping_add(op2))
+                                    .unwrap()
+                                    .into()
+                            }
+                            (
+                                RuntimeValue::Vec {
+                                    lenght: _,
+                                    contents: op1,
+                                },
+                                RuntimeValue::Vec {
+                                    lenght: _,
+                                    contents: op2,
+                                },
+                            ) => {
+                                let res = op1
+                                    .iter()
+                                    .zip(op2.iter())
+                                    .map(|(v1, v2)| {
+                                        match_scalar!(v1, v2, v1.wrapping_add(*v2)).unwrap()
+                                    })
+                                    .collect::<Vec<RuntimeScalarValue>>();
+
+                                RuntimeValue::Vec {
+                                    lenght: res.len(),
+                                    contents: res,
+                                }
+                            }
+                            _ => panic!(),
+                        };
+
+                    self.values.insert(v_id, res);
+                }
+                Instruction::Sub(v_id, op1, op2) => {
+                    let res: RuntimeValue =
+                        match (self.read(&op1).unwrap(), self.read(&op2).unwrap()) {
+                            (RuntimeValue::Scalar(op1), RuntimeValue::Scalar(op2)) => {
+                                match_scalar!(op1, op2, op1.wrapping_sub(op2))
+                                    .unwrap()
+                                    .into()
+                            }
+                            (
+                                RuntimeValue::Vec {
+                                    lenght: _,
+                                    contents: op1,
+                                },
+                                RuntimeValue::Vec {
+                                    lenght: _,
+                                    contents: op2,
+                                },
+                            ) => {
+                                let res = op1
+                                    .iter()
+                                    .zip(op2.iter())
+                                    .map(|(v1, v2)| {
+                                        match_scalar!(v1, v2, v1.wrapping_sub(*v2)).unwrap()
+                                    })
+                                    .collect::<Vec<RuntimeScalarValue>>();
+
+                                RuntimeValue::Vec {
+                                    lenght: res.len(),
+                                    contents: res,
+                                }
+                            }
+                            _ => panic!(),
+                        };
+
+                    self.values.insert(v_id, res);
+                }
+                Instruction::Select {
+                    out,
+                    condition,
+                    op1,
+                    op2,
+                } => {
+                    let condition = self.read(&condition).unwrap();
+                    let op1 = self.read(&op1).unwrap();
+                    let op2 = self.read(&op2).unwrap();
+                    let res = match condition {
+                        RuntimeValue::Scalar(RuntimeScalarValue::Bool(cond)) => {
+                            if cond {
+                                op1
+                            } else {
+                                op2
+                            }
+                        }
+                        _ => panic!(
+                            "Mismatched types for Selcet: {:?}, {:?}, {:?}",
+                            condition, op1, op2
+                        ),
+                    };
+                    self.write(&out, res);
+                }
+                Instruction::VecAllTrue(v_id, vector) => {
+                    let vector = self.read(&vector).unwrap();
+                    if let RuntimeValue::Vec { lenght, contents } = vector {
+                        let res = contents.iter().all(|v| {
+                            if let RuntimeScalarValue::Bool(v) = v {
+                                *v
+                            } else {
+                                panic!("Vector contains non-bool value: {:?}", v);
+                            }
+                        });
+                        self.write(&v_id, res.into());
+                    } else {
+                        panic!("Bad type for VecAllTrue: {:?}", vector);
+                    }
+                }
+                Instruction::CreateStruct { out, members } => {
+                    self.write(
+                        &out,
+                        RuntimeValue::Struct {
+                            members: members.iter().map(|v| self.read(v).unwrap()).collect(),
+                        },
+                    );
+                }
+                Instruction::CreateVec { out, members } => {
+                    self.write(
+                        &out,
+                        RuntimeValue::Vec {
+                            lenght: members.len(),
+                            contents: members
+                                .iter()
+                                .map(|v| {
+                                    TryInto::<RuntimeScalarValue>::try_into(self.read(v).unwrap())
+                                        .unwrap()
+                                })
+                                .collect(),
+                        },
+                    );
                 }
             },
             Some(ExecutionNext::Terminator(t)) => match t {

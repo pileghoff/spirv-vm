@@ -45,7 +45,7 @@ fn op_to_string(op: &rspirv::dr::Operand) -> Result<String> {
 fn parse_block(
     insts: &mut VecDeque<rspirv::dr::Instruction>,
     _valuemap: &HashMap<ValueId, RuntimeValue>,
-    _typemap: &HashMap<TypeId, Type>,
+    typemap: &HashMap<TypeId, Type>,
 ) -> Result<Block> {
     let mut instructions = Vec::new();
     let terminator: Terminator = loop {
@@ -87,6 +87,66 @@ fn parse_block(
 
                 instructions.push(Instruction::CreateInnerPointer { out, base, offsets });
             }
+            rspirv::spirv::Op::CompositeConstruct => {
+                let t_id: TypeId = inst
+                    .result_type
+                    .map(|v: u32| Into::<TypeId>::into(v))
+                    .ok_or(miette!(
+                        "Failed to get result ID from inst {:?}",
+                        inst.class.opcode
+                    ))?;
+                let out: ValueId = result_id(&inst)?;
+                let members: Vec<ValueId> = inst
+                    .operands
+                    .iter()
+                    .map(|v| TryInto::<ValueId>::try_into(v).into_diagnostic())
+                    .collect::<Result<Vec<ValueId>>>()?;
+                match typemap.get(&t_id).ok_or(miette!(
+                    "Result type not found for CompositeConstruct: %{:?}",
+                    t_id
+                ))? {
+                    Type::Vec {
+                        lenght: _,
+                        inner: _,
+                    } => instructions.push(Instruction::CreateVec { out, members }),
+                    Type::Struct { members: _ } => {
+                        instructions.push(Instruction::CreateStruct { out, members })
+                    }
+                    _ => {
+                        return Err(miette!(
+                            "Incorrect type for CompositeConstruct: %{:?}",
+                            t_id
+                        ));
+                    }
+                };
+            }
+            rspirv::spirv::Op::CompositeExtract => {
+                let out: ValueId = result_id(&inst)?;
+                let mut ops = inst.operands.clone();
+                let composite: ValueId = (&ops.remove(0)).try_into().into_diagnostic()?;
+                let offsets = ops
+                    .iter()
+                    .map(|v| op_to_u32(v).map(|v| v as usize))
+                    .collect::<Result<Vec<_>>>()?;
+
+                instructions.push(Instruction::CopyInner {
+                    out,
+                    composite,
+                    offsets,
+                });
+            }
+            rspirv::spirv::Op::Select => {
+                let out: ValueId = result_id(&inst)?;
+                let condition: ValueId = (&inst.operands[0]).try_into().into_diagnostic()?;
+                let op1: ValueId = (&inst.operands[1]).try_into().into_diagnostic()?;
+                let op2: ValueId = (&inst.operands[2]).try_into().into_diagnostic()?;
+                instructions.push(Instruction::Select {
+                    out,
+                    condition,
+                    op1,
+                    op2,
+                });
+            }
             rspirv::spirv::Op::Variable => {
                 let v_id: ValueId = result_id(&inst)?;
                 let storage: Storage = inst.operands[0].clone().into();
@@ -116,38 +176,49 @@ fn parse_block(
                 let v_id = result_id(&inst)?;
                 let op1 = (&inst.operands[0]).try_into().into_diagnostic()?;
                 let op2 = (&inst.operands[1]).try_into().into_diagnostic()?;
-                instructions.push(Instruction::IAdd(v_id, op1, op2));
+                instructions.push(Instruction::Add(v_id, op1, op2));
+            }
+            rspirv::spirv::Op::ISub => {
+                let v_id = result_id(&inst)?;
+                let op1 = (&inst.operands[0]).try_into().into_diagnostic()?;
+                let op2 = (&inst.operands[1]).try_into().into_diagnostic()?;
+                instructions.push(Instruction::Sub(v_id, op1, op2));
             }
             rspirv::spirv::Op::SGreaterThan => {
                 let v_id = result_id(&inst)?;
                 let op1 = (&inst.operands[0]).try_into().into_diagnostic()?;
                 let op2 = (&inst.operands[1]).try_into().into_diagnostic()?;
-                instructions.push(Instruction::IGreaterThan(v_id, op1, op2));
+                instructions.push(Instruction::GreaterThan(v_id, op1, op2));
             }
             rspirv::spirv::Op::SGreaterThanEqual => {
                 let v_id = result_id(&inst)?;
                 let op1 = (&inst.operands[0]).try_into().into_diagnostic()?;
                 let op2 = (&inst.operands[1]).try_into().into_diagnostic()?;
-                instructions.push(Instruction::IGreaterThanEq(v_id, op1, op2));
+                instructions.push(Instruction::GreaterThanEq(v_id, op1, op2));
             }
             rspirv::spirv::Op::SLessThan => {
                 let v_id = result_id(&inst)?;
                 let op1 = (&inst.operands[0]).try_into().into_diagnostic()?;
                 let op2 = (&inst.operands[1]).try_into().into_diagnostic()?;
-                instructions.push(Instruction::ILessThan(v_id, op1, op2));
+                instructions.push(Instruction::LessThan(v_id, op1, op2));
             }
             rspirv::spirv::Op::SLessThanEqual => {
                 let v_id = result_id(&inst)?;
                 let op1 = (&inst.operands[0]).try_into().into_diagnostic()?;
                 let op2 = (&inst.operands[1]).try_into().into_diagnostic()?;
-                instructions.push(Instruction::ILessThanEq(v_id, op1, op2));
+                instructions.push(Instruction::LessThanEq(v_id, op1, op2));
+            }
+            rspirv::spirv::Op::All => {
+                let v_id = result_id(&inst)?;
+                let op = (&inst.operands[0]).try_into().into_diagnostic()?;
+                instructions.push(Instruction::VecAllTrue(v_id, op));
             }
 
             rspirv::spirv::Op::IEqual => {
                 let v_id = result_id(&inst)?;
                 let op1 = (&inst.operands[0]).try_into().into_diagnostic()?;
                 let op2 = (&inst.operands[1]).try_into().into_diagnostic()?;
-                instructions.push(Instruction::IEqual(v_id, op1, op2));
+                instructions.push(Instruction::Equal(v_id, op1, op2));
             }
             rspirv::spirv::Op::FunctionCall => {
                 let r_id = result_id(&inst)?;
@@ -342,6 +413,7 @@ fn parse_module(module: rspirv::dr::Module) -> Result<Program> {
                     _ => panic!("Failed to handle type: {:?}", t),
                 };
 
+                println!("Constant %{i}: {:?}", v.pretty());
                 program.values.insert(i, v);
             }
             rspirv::spirv::Op::TypePointer => {

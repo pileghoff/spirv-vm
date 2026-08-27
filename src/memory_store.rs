@@ -7,6 +7,21 @@ pub struct MemoryStore {
     pub objects: Vec<RuntimeValue>,
 }
 
+pub fn mem_read_inner(mut offsets: Vec<usize>, value: RuntimeValue) -> Option<RuntimeValue> {
+    if offsets.is_empty() {
+        return Some(value);
+    }
+    let offset = offsets.remove(0);
+    match value {
+        RuntimeValue::Vec {
+            lenght: _,
+            contents,
+        } => mem_read_inner(offsets, contents[offset].clone().into()),
+        RuntimeValue::Struct { members } => mem_read_inner(offsets, members[offset].clone()),
+        _ => panic!(),
+    }
+}
+
 impl MemoryStore {
     pub fn new(storage: Storage) -> Self {
         MemoryStore {
@@ -31,26 +46,10 @@ impl MemoryStore {
         }
     }
 
-    fn mem_read_inner(&self, mut offsets: Vec<usize>, value: RuntimeValue) -> Option<RuntimeValue> {
-        if offsets.is_empty() {
-            return Some(value);
-        }
-        let offset = offsets.remove(0);
-        match value {
-            RuntimeValue::Vec { lenght: _, contents } => {
-                self.mem_read_inner(offsets, contents[offset].clone().into())
-            }
-            RuntimeValue::Struct { members } => {
-                self.mem_read_inner(offsets, members[offset].clone())
-            }
-            _ => panic!(),
-        }
-    }
-
     pub fn read(&self, pointer: Pointer) -> Option<RuntimeValue> {
         let index: usize = pointer.id.into();
         match self.objects.get(index) {
-            Some(v) => self.mem_read_inner(pointer.offsets.clone(), v.clone()),
+            Some(v) => mem_read_inner(pointer.offsets.clone(), v.clone()),
             None => None,
         }
     }
