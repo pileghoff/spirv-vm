@@ -172,6 +172,18 @@ fn parse_block(
                 let from: ValueId = (&inst.operands[1]).try_into().into_diagnostic()?;
                 instructions.push(Instruction::Store { from, ptr });
             }
+            rspirv::spirv::Op::LogicalAnd => {
+                let v_id = result_id(&inst)?;
+                let op1 = (&inst.operands[0]).try_into().into_diagnostic()?;
+                let op2 = (&inst.operands[1]).try_into().into_diagnostic()?;
+                instructions.push(Instruction::And(v_id, op1, op2));
+            }
+            rspirv::spirv::Op::LogicalOr => {
+                let v_id = result_id(&inst)?;
+                let op1 = (&inst.operands[0]).try_into().into_diagnostic()?;
+                let op2 = (&inst.operands[1]).try_into().into_diagnostic()?;
+                instructions.push(Instruction::Or(v_id, op1, op2));
+            }
             rspirv::spirv::Op::IAdd => {
                 let v_id = result_id(&inst)?;
                 let op1 = (&inst.operands[0]).try_into().into_diagnostic()?;
@@ -183,6 +195,30 @@ fn parse_block(
                 let op1 = (&inst.operands[0]).try_into().into_diagnostic()?;
                 let op2 = (&inst.operands[1]).try_into().into_diagnostic()?;
                 instructions.push(Instruction::Sub(v_id, op1, op2));
+            }
+            rspirv::spirv::Op::UDiv | rspirv::spirv::Op::SDiv => {
+                let v_id = result_id(&inst)?;
+                let op1 = (&inst.operands[0]).try_into().into_diagnostic()?;
+                let op2 = (&inst.operands[1]).try_into().into_diagnostic()?;
+                instructions.push(Instruction::Div(v_id, op1, op2));
+            }
+            rspirv::spirv::Op::IMul => {
+                let v_id = result_id(&inst)?;
+                let op1 = (&inst.operands[0]).try_into().into_diagnostic()?;
+                let op2 = (&inst.operands[1]).try_into().into_diagnostic()?;
+                instructions.push(Instruction::Mul(v_id, op1, op2));
+            }
+            rspirv::spirv::Op::UMod | rspirv::spirv::Op::SMod => {
+                let v_id = result_id(&inst)?;
+                let op1 = (&inst.operands[0]).try_into().into_diagnostic()?;
+                let op2 = (&inst.operands[1]).try_into().into_diagnostic()?;
+                instructions.push(Instruction::Mod(v_id, op1, op2));
+            }
+            rspirv::spirv::Op::SRem => {
+                let v_id = result_id(&inst)?;
+                let op1 = (&inst.operands[0]).try_into().into_diagnostic()?;
+                let op2 = (&inst.operands[1]).try_into().into_diagnostic()?;
+                instructions.push(Instruction::Rem(v_id, op1, op2));
             }
             rspirv::spirv::Op::SGreaterThan => {
                 let v_id = result_id(&inst)?;

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
     id_types::{BlockId, FunctionId, ValueId},
     instructions::{Instruction, Terminator},
-    memory_store::{MemoryStore, mem_read_inner},
+    memory_store::MemoryStore,
     program::Program,
     types::{Pointer, RuntimeScalarValue, RuntimeValue, Storage},
 };
@@ -26,6 +26,7 @@ pub enum ExecutionNext {
     Instruction(Instruction),
 }
 
+// This is a disgusting way to do it.. But i dont see any better way currently..
 #[macro_export]
 macro_rules! match_scalar {
     ( $v1:ident, $v2:ident, $op:expr ) => {
@@ -267,8 +268,7 @@ impl ExecutionContex {
                     offsets,
                 } => {
                     let composite = self.read(&composite).unwrap();
-                    let res = mem_read_inner(offsets.clone(), composite).unwrap();
-                    println!("CopyInner %{:?}: {}", out, res.pretty());
+                    let res = composite.read_inner(offsets.clone());
                     self.write(&out, res);
                 }
                 Instruction::CreateInnerPointer { out, base, offsets } => {
@@ -332,103 +332,58 @@ impl ExecutionContex {
                 }
 
                 Instruction::Equal(v_id, op1, op2) => {
-                    println!("{:?}", self);
-                    println!("{:?}", op1);
                     let op1 = self.read(&op1).unwrap();
                     let op2 = self.read(&op2).unwrap();
-                    let res: RuntimeValue = match (op1.clone(), op2.clone()) {
-                        (RuntimeValue::Scalar(v1), RuntimeValue::Scalar(v2)) => (v1 == v2).into(),
-                        (
-                            RuntimeValue::Vec {
-                                lenght: _,
-                                contents: op1,
-                            },
-                            RuntimeValue::Vec {
-                                lenght,
-                                contents: op2,
-                            },
-                        ) => op1
-                            .iter()
-                            .zip(op2.iter())
-                            .map(|(v1, v2)| v1 == v2)
-                            .collect::<Vec<_>>()
-                            .into(),
-
-                        _ => panic!("Mismatched types {:?}, {:?}", op1, op2),
-                    };
+                    let res: RuntimeValue = op1.map_scalars(&op2, |v1, v2| (v1 == v2).into());
 
                     self.values.insert(v_id, res);
                 }
                 Instruction::Add(v_id, op1, op2) => {
-                    let res: RuntimeValue =
-                        match (self.read(&op1).unwrap(), self.read(&op2).unwrap()) {
-                            (RuntimeValue::Scalar(op1), RuntimeValue::Scalar(op2)) => {
-                                match_scalar!(op1, op2, op1.wrapping_add(op2))
-                                    .unwrap()
-                                    .into()
-                            }
-                            (
-                                RuntimeValue::Vec {
-                                    lenght: _,
-                                    contents: op1,
-                                },
-                                RuntimeValue::Vec {
-                                    lenght: _,
-                                    contents: op2,
-                                },
-                            ) => {
-                                let res = op1
-                                    .iter()
-                                    .zip(op2.iter())
-                                    .map(|(v1, v2)| {
-                                        match_scalar!(v1, v2, v1.wrapping_add(*v2)).unwrap()
-                                    })
-                                    .collect::<Vec<RuntimeScalarValue>>();
-
-                                RuntimeValue::Vec {
-                                    lenght: res.len(),
-                                    contents: res,
-                                }
-                            }
-                            _ => panic!(),
-                        };
-
+                    let op1 = self.read(&op1).unwrap();
+                    let op2 = self.read(&op2).unwrap();
+                    let res: RuntimeValue = op1.map_scalars(&op2, |v1, v2| v1.add(v2));
                     self.values.insert(v_id, res);
                 }
                 Instruction::Sub(v_id, op1, op2) => {
-                    let res: RuntimeValue =
-                        match (self.read(&op1).unwrap(), self.read(&op2).unwrap()) {
-                            (RuntimeValue::Scalar(op1), RuntimeValue::Scalar(op2)) => {
-                                match_scalar!(op1, op2, op1.wrapping_sub(op2))
-                                    .unwrap()
-                                    .into()
-                            }
-                            (
-                                RuntimeValue::Vec {
-                                    lenght: _,
-                                    contents: op1,
-                                },
-                                RuntimeValue::Vec {
-                                    lenght: _,
-                                    contents: op2,
-                                },
-                            ) => {
-                                let res = op1
-                                    .iter()
-                                    .zip(op2.iter())
-                                    .map(|(v1, v2)| {
-                                        match_scalar!(v1, v2, v1.wrapping_sub(*v2)).unwrap()
-                                    })
-                                    .collect::<Vec<RuntimeScalarValue>>();
-
-                                RuntimeValue::Vec {
-                                    lenght: res.len(),
-                                    contents: res,
-                                }
-                            }
-                            _ => panic!(),
-                        };
-
+                    let op1 = self.read(&op1).unwrap();
+                    let op2 = self.read(&op2).unwrap();
+                    let res: RuntimeValue = op1.map_scalars(&op2, |v1, v2| v1.sub(v2));
+                    self.values.insert(v_id, res);
+                }
+                Instruction::Mul(v_id, op1, op2) => {
+                    let op1 = self.read(&op1).unwrap();
+                    let op2 = self.read(&op2).unwrap();
+                    let res: RuntimeValue = op1.map_scalars(&op2, |v1, v2| v1.mul(v2));
+                    self.values.insert(v_id, res);
+                }
+                Instruction::Div(v_id, op1, op2) => {
+                    let op1 = self.read(&op1).unwrap();
+                    let op2 = self.read(&op2).unwrap();
+                    let res: RuntimeValue = op1.map_scalars(&op2, |v1, v2| v1.div(v2));
+                    self.values.insert(v_id, res);
+                }
+                Instruction::Rem(v_id, op1, op2) => {
+                    let op1 = self.read(&op1).unwrap();
+                    let op2 = self.read(&op2).unwrap();
+                    let res: RuntimeValue = op1.map_scalars(&op2, |v1, v2| v1.rem(v2));
+                    self.values.insert(v_id, res);
+                }
+                Instruction::Mod(v_id, op1, op2) => {
+                    let op1 = self.read(&op1).unwrap();
+                    let op2 = self.read(&op2).unwrap();
+                    let res: RuntimeValue = op1.map_scalars(&op2, |v1, v2| v1.modulus(v2));
+                    self.values.insert(v_id, res);
+                }
+                Instruction::And(v_id, op1, op2) => {
+                    let op1 = self.read(&op1).unwrap();
+                    let op2 = self.read(&op2).unwrap();
+                    let res: RuntimeValue = op1.map_scalars(&op2, |v1, v2| v1.and(v2));
+                    self.values.insert(v_id, res);
+                }
+                Instruction::Or(v_id, op1, op2) => {
+                    let op1 = self.read(&op1).unwrap();
+                    let op2 = self.read(&op2).unwrap();
+                    let res: RuntimeValue = op1.map_scalars(&op2, |v1, v2| v1.or(v2));
                     self.values.insert(v_id, res);
                 }
                 Instruction::Select {

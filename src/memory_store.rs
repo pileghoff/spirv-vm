@@ -7,20 +7,7 @@ pub struct MemoryStore {
     pub objects: Vec<RuntimeValue>,
 }
 
-pub fn mem_read_inner(mut offsets: Vec<usize>, value: RuntimeValue) -> Option<RuntimeValue> {
-    if offsets.is_empty() {
-        return Some(value);
-    }
-    let offset = offsets.remove(0);
-    match value {
-        RuntimeValue::Vec {
-            lenght: _,
-            contents,
-        } => mem_read_inner(offsets, contents[offset].clone().into()),
-        RuntimeValue::Struct { members } => mem_read_inner(offsets, members[offset].clone()),
-        _ => panic!(),
-    }
-}
+// Todo: This should be a function on RuntimeValue
 
 impl MemoryStore {
     pub fn new(storage: Storage) -> Self {
@@ -49,39 +36,8 @@ impl MemoryStore {
     pub fn read(&self, pointer: Pointer) -> Option<RuntimeValue> {
         let index: usize = pointer.id.into();
         match self.objects.get(index) {
-            Some(v) => mem_read_inner(pointer.offsets.clone(), v.clone()),
+            Some(v) => Some(v.clone().read_inner(pointer.offsets.clone())),
             None => None,
-        }
-    }
-
-    fn mem_modify_inner(
-        &self,
-        mut offsets: Vec<usize>,
-        value: RuntimeValue,
-        new_value: RuntimeValue,
-    ) -> RuntimeValue {
-        if offsets.is_empty() {
-            return new_value;
-        }
-        let offset = offsets.remove(0);
-        match value {
-            RuntimeValue::Vec { lenght, contents } => {
-                let mut contents = contents.clone();
-                let val = contents[offset].clone().into();
-                contents[offset] = self
-                    .mem_modify_inner(offsets, val, new_value)
-                    .try_into()
-                    .unwrap();
-                RuntimeValue::Vec { lenght, contents }
-            }
-
-            RuntimeValue::Struct { members } => {
-                let mut members = members.clone();
-                let value = members[offset].clone();
-                members[offset] = self.mem_modify_inner(offsets, value, new_value);
-                RuntimeValue::Struct { members }
-            }
-            _ => panic!(),
         }
     }
 
@@ -98,7 +54,7 @@ impl MemoryStore {
             self.objects[index] = value;
         } else {
             let old_value = self.objects[index].clone();
-            self.objects[index] = self.mem_modify_inner(pointer.offsets, old_value, value);
+            self.objects[index] = old_value.modify_inner(pointer.offsets, value);
         }
     }
 }

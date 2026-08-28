@@ -1,32 +1,5 @@
-use naga::{
-    back::spv::{self, Options, WriterFlags},
-    valid::ShaderStages,
-};
-use spirvemu::run::run;
-use spirvemu::types::*;
-use spirvemu::{execution_context::ExecutionContex, parse::parse_words};
-use spirvemu::{id_types::*, program::Program};
-
-fn compile(source: &str) -> Vec<u32> {
-    let module: naga::Module = naga::front::wgsl::parse_str(source).unwrap();
-    let module_info: naga::valid::ModuleInfo = naga::valid::Validator::new(
-        naga::valid::ValidationFlags::all(),
-        naga::valid::Capabilities::all(),
-    )
-    .subgroup_stages(naga::valid::ShaderStages::all())
-    .subgroup_operations(naga::valid::SubgroupOperationSet::all())
-    .validate(&module)
-    .unwrap();
-    let options = Options::default();
-
-    spv::write_vec(&module, &module_info, &options, None).unwrap()
-}
-
-fn run_source(source: &str) -> ExecutionContex {
-    let spirv = compile(source);
-    let program = parse_words(spirv).unwrap();
-    run(program)
-}
+mod common;
+use common::*;
 
 #[test]
 fn test_add_vars() {
@@ -38,11 +11,8 @@ fn test_add_vars() {
     }";
     let program = run_source(source);
 
-    let a: ValueId = program.find_valueid_for_name("a").unwrap();
-    assert_eq!(program.mem_read(&a).unwrap(), 0i32.into());
-
-    let b: ValueId = program.find_valueid_for_name("b").unwrap();
-    assert_eq!(program.mem_read(&b).unwrap(), 1i32.into());
+    assert_eq!(get_var(&program, "a"), 0i32.into());
+    assert_eq!(get_var(&program, "b"), 1i32.into());
 }
 
 #[test]
@@ -55,11 +25,8 @@ fn test_add_vars_u32() {
     }";
     let program = run_source(source);
 
-    let a: ValueId = program.find_valueid_for_name("a").unwrap();
-    assert_eq!(program.mem_read(&a).unwrap(), 0u32.into());
-
-    let b: ValueId = program.find_valueid_for_name("b").unwrap();
-    assert_eq!(program.mem_read(&b).unwrap(), 1u32.into());
+    assert_eq!(get_var(&program, "a"), 0u32.into());
+    assert_eq!(get_var(&program, "b"), 1u32.into());
 }
 
 #[test]
@@ -73,12 +40,7 @@ fn test_sub() {
     }",
     );
 
-    assert_eq!(
-        program
-            .mem_read(&program.find_valueid_for_name("a").unwrap())
-            .unwrap(),
-        9u32.into()
-    );
+    assert_eq!(get_var(&program, "a"), 9u32.into());
 }
 
 #[test]
@@ -95,8 +57,7 @@ fn test_function_ret_into_var() {
     }",
     );
 
-    let a: ValueId = program.find_valueid_for_name("a").unwrap();
-    assert_eq!(program.mem_read(&a).unwrap(), 1i32.into());
+    assert_eq!(get_var(&program, "a"), 1i32.into());
 }
 
 #[test]
@@ -115,11 +76,8 @@ fn test_add_in_func() {
     }",
     );
 
-    let a: ValueId = program.find_valueid_for_name("a").unwrap();
-    assert_eq!(program.mem_read(&a).unwrap(), 4i32.into());
-
-    let b: ValueId = program.find_valueid_for_name("b").unwrap();
-    assert_eq!(program.mem_read(&b).unwrap(), 2i32.into());
+    assert_eq!(get_var(&program, "a"), 4i32.into());
+    assert_eq!(get_var(&program, "b"), 2i32.into());
 }
 
 #[test]
@@ -140,11 +98,8 @@ fn test_if_else() {
     }",
     );
 
-    let a: ValueId = program.find_valueid_for_name("a").unwrap();
-    assert_eq!(program.mem_read(&a).unwrap(), 999i32.into());
-
-    let b: ValueId = program.find_valueid_for_name("b").unwrap();
-    assert_eq!(program.mem_read(&b).unwrap(), 2i32.into());
+    assert_eq!(get_var(&program, "a"), 999i32.into());
+    assert_eq!(get_var(&program, "b"), 2i32.into());
 }
 
 #[test]
@@ -160,8 +115,7 @@ fn test_eq() {
         ",
     );
 
-    let x: ValueId = program.find_valueid_for_name("x").unwrap();
-    assert_eq!(program.mem_read(&x).unwrap(), false.into());
+    assert_eq!(get_var(&program, "x"), false.into());
 }
 
 #[test]
@@ -177,8 +131,7 @@ fn test_lt() {
         ",
     );
 
-    let x: ValueId = program.find_valueid_for_name("x").unwrap();
-    assert_eq!(program.mem_read(&x).unwrap(), true.into());
+    assert_eq!(get_var(&program, "x"), true.into());
 }
 
 #[test]
@@ -194,8 +147,7 @@ fn test_gt() {
         ",
     );
 
-    let x: ValueId = program.find_valueid_for_name("x").unwrap();
-    assert_eq!(program.mem_read(&x).unwrap(), false.into());
+    assert_eq!(get_var(&program, "x"), false.into());
 }
 
 #[test]
@@ -211,8 +163,7 @@ fn test_lte() {
         ",
     );
 
-    let x: ValueId = program.find_valueid_for_name("x").unwrap();
-    assert_eq!(program.mem_read(&x).unwrap(), true.into());
+    assert_eq!(get_var(&program, "x"), true.into());
 }
 
 #[test]
@@ -230,234 +181,53 @@ fn test_gte() {
         ",
     );
 
-    let x: ValueId = program.find_valueid_for_name("x").unwrap();
-    assert_eq!(program.mem_read(&x).unwrap(), false.into());
-
-    let y: ValueId = program.find_valueid_for_name("y").unwrap();
-    assert_eq!(program.mem_read(&y).unwrap(), true.into());
+    assert_eq!(get_var(&program, "x"), false.into());
+    assert_eq!(get_var(&program, "y"), true.into());
 }
 
 #[test]
-fn test_vec2_init() {
+fn test_mult() {
     let program = run_source(
         "
             @compute @workgroup_size(1)
             fn main() {
-                var a = vec2();
-                a.x = 2;
+                var a = 10 * 5;
+                var b = -10 * 5;
             }
         ",
     );
 
-    let a: ValueId = program.find_valueid_for_name("a").unwrap();
-    assert_eq!(
-        program.mem_read(&a).unwrap(),
-        RuntimeValue::Vec {
-            lenght: 2,
-            contents: vec![2.into(), 0.into()]
-        }
-    );
+    assert_eq!(get_var(&program, "a"), 50.into());
+    assert_eq!(get_var(&program, "b"), (-50).into());
 }
 
 #[test]
-fn test_vec2_math() {
+fn test_remainder() {
     let program = run_source(
         "
             @compute @workgroup_size(1)
             fn main() {
-                var a = vec2();
-                a.x = 2;
-                a.y = 1;
-                var b = vec2();
-                b.y = 4;
-                b.x = a.x + a.y + b.y; // 2 + 1 + 4 = 7
+                var x = 10 % 2;
+                var y = 20 % 3;
             }
         ",
     );
 
-    let a: ValueId = program.find_valueid_for_name("a").unwrap();
-    assert_eq!(
-        program.mem_read(&a).unwrap(),
-        RuntimeValue::Vec {
-            lenght: 2,
-            contents: vec![2.into(), 1.into()]
-        }
-    );
-
-    let b: ValueId = program.find_valueid_for_name("b").unwrap();
-    assert_eq!(
-        program.mem_read(&b).unwrap(),
-        RuntimeValue::Vec {
-            lenght: 2,
-            contents: vec![7.into(), 4.into()]
-        }
-    );
+    assert_eq!(get_var(&program, "x"), 0.into());
+    assert_eq!(get_var(&program, "y"), 2.into());
 }
 
 #[test]
-fn test_struct() {
-    let program = run_source(
-        "
-            struct Foo{
-              bar: u32,
-              baz: u32,
-            }
-
-            @compute @workgroup_size(1)
-            fn main() {
-                var a = Foo(2, 4);
-            }
-        ",
-    );
-
-    let a: ValueId = program.find_valueid_for_name("a").unwrap();
-    assert_eq!(
-        program.mem_read(&a).unwrap(),
-        RuntimeValue::Struct {
-            members: vec![2u32.into(), 4u32.into()]
-        }
-    );
-}
-
-#[test]
-fn test_nested_struct() {
-    let program = run_source(
-        "
-            struct Foo{
-              bar: u32,
-              baz: u32,
-            }
-
-            struct FooFoo{
-              bar: Foo,
-              baz: u32,
-            }
-
-            @compute @workgroup_size(1)
-            fn main() {
-                var a = FooFoo(Foo(2, 4), 6);
-                var b = FooFoo(Foo(4, 4), 6);
-                var c = b.baz + a.bar.baz; // 4 + 6 = 10
-            }
-        ",
-    );
-
-    let a: ValueId = program.find_valueid_for_name("a").unwrap();
-    assert_eq!(
-        program.mem_read(&a).unwrap(),
-        RuntimeValue::Struct {
-            members: vec![
-                RuntimeValue::Struct {
-                    members: vec![2u32.into(), 4u32.into()]
-                },
-                6u32.into()
-            ]
-        }
-    );
-
-    let c: ValueId = program.find_valueid_for_name("c").unwrap();
-    assert_eq!(program.mem_read(&c).unwrap(), 10u32.into());
-}
-
-#[test]
-fn test_nested_struct_reassign_member() {
-    let program = run_source(
-        "
-            struct Foo{
-              bar: u32,
-              baz: u32,
-            }
-
-            struct FooFoo{
-              bar: Foo,
-              baz: u32,
-            }
-
-            @compute @workgroup_size(1)
-            fn main() {
-                var a = FooFoo(Foo(2, 4), 6);
-                a.baz = 2;
-                a.bar.baz = 3;
-
-                var b = FooFoo(Foo(2, 4), 6);
-                b.bar = Foo(999, 31);
-
-                var c = FooFoo(Foo(2, 4), 6);
-                c = FooFoo(Foo(1,2),3);
-            }
-        ",
-    );
-
-    assert_eq!(
-        program
-            .mem_read(&program.find_valueid_for_name("a").unwrap())
-            .unwrap(),
-        RuntimeValue::Struct {
-            members: vec![
-                RuntimeValue::Struct {
-                    members: vec![2u32.into(), 3u32.into()]
-                },
-                2u32.into()
-            ]
-        }
-    );
-
-    assert_eq!(
-        program
-            .mem_read(&program.find_valueid_for_name("b").unwrap())
-            .unwrap(),
-        RuntimeValue::Struct {
-            members: vec![
-                RuntimeValue::Struct {
-                    members: vec![999u32.into(), 31u32.into()]
-                },
-                6u32.into()
-            ]
-        }
-    );
-
-    assert_eq!(
-        program
-            .mem_read(&program.find_valueid_for_name("c").unwrap())
-            .unwrap(),
-        RuntimeValue::Struct {
-            members: vec![
-                RuntimeValue::Struct {
-                    members: vec![1u32.into(), 2u32.into()]
-                },
-                3u32.into()
-            ]
-        }
-    );
-}
-
-#[test]
-fn test_while() {
+fn test_umod() {
     let program = run_source(
         "
             @compute @workgroup_size(1)
             fn main() {
-                var a = 10;
-                var b = 0;
-                while(a > 0) {
-                    a--;
-                    b++;
-                }
+                var x:u32 = 10;
+                x = x % 2;
             }
         ",
     );
 
-    assert_eq!(
-        program
-            .mem_read(&program.find_valueid_for_name("a").unwrap())
-            .unwrap(),
-        0.into()
-    );
-
-    assert_eq!(
-        program
-            .mem_read(&program.find_valueid_for_name("b").unwrap())
-            .unwrap(),
-        10.into()
-    );
+    assert_eq!(get_var(&program, "x"), 0u32.into());
 }

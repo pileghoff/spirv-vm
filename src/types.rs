@@ -1,6 +1,10 @@
 use crate::id_types::{MemValueId, TypeId};
 use miette::Report;
-use std::fmt::Debug;
+use num::traits::Euclid;
+use std::{
+    fmt::Debug,
+    ops::{Div, Mul},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Storage {
@@ -98,6 +102,105 @@ pub enum RuntimeScalarValue {
     U16(u16),
     U32(u32),
     U64(u64),
+}
+
+impl RuntimeScalarValue {
+    pub fn add(&self, rhs: &RuntimeScalarValue) -> RuntimeScalarValue {
+        match (self, rhs) {
+            (Self::I8(v1), Self::I8(v2)) => v1.wrapping_add(*v2).into(),
+            (Self::I16(v1), Self::I16(v2)) => v1.wrapping_add(*v2).into(),
+            (Self::I32(v1), Self::I32(v2)) => v1.wrapping_add(*v2).into(),
+            (Self::I64(v1), Self::I64(v2)) => v1.wrapping_add(*v2).into(),
+            (Self::U8(v1), Self::U8(v2)) => v1.wrapping_add(*v2).into(),
+            (Self::U16(v1), Self::U16(v2)) => v1.wrapping_add(*v2).into(),
+            (Self::U32(v1), Self::U32(v2)) => v1.wrapping_add(*v2).into(),
+            (Self::U64(v1), Self::U64(v2)) => v1.wrapping_add(*v2).into(),
+            (lhs, rhs) => panic!("Mismatched types for add {:?}, {:?}", lhs, rhs),
+        }
+    }
+
+    pub fn sub(&self, rhs: &RuntimeScalarValue) -> RuntimeScalarValue {
+        match (self, rhs) {
+            (Self::I8(v1), Self::I8(v2)) => v1.wrapping_sub(*v2).into(),
+            (Self::I16(v1), Self::I16(v2)) => v1.wrapping_sub(*v2).into(),
+            (Self::I32(v1), Self::I32(v2)) => v1.wrapping_sub(*v2).into(),
+            (Self::I64(v1), Self::I64(v2)) => v1.wrapping_sub(*v2).into(),
+            (Self::U8(v1), Self::U8(v2)) => v1.wrapping_sub(*v2).into(),
+            (Self::U16(v1), Self::U16(v2)) => v1.wrapping_sub(*v2).into(),
+            (Self::U32(v1), Self::U32(v2)) => v1.wrapping_sub(*v2).into(),
+            (Self::U64(v1), Self::U64(v2)) => v1.wrapping_sub(*v2).into(),
+            (lhs, rhs) => panic!("Mismatched types for sub {:?}, {:?}", lhs, rhs),
+        }
+    }
+
+    pub fn mul(&self, rhs: &RuntimeScalarValue) -> RuntimeScalarValue {
+        match (self, rhs) {
+            (Self::I8(v1), Self::I8(v2)) => v1.mul(*v2).into(),
+            (Self::I16(v1), Self::I16(v2)) => v1.mul(*v2).into(),
+            (Self::I32(v1), Self::I32(v2)) => v1.mul(*v2).into(),
+            (Self::I64(v1), Self::I64(v2)) => v1.mul(*v2).into(),
+            (Self::U8(v1), Self::U8(v2)) => v1.mul(*v2).into(),
+            (Self::U16(v1), Self::U16(v2)) => v1.mul(*v2).into(),
+            (Self::U32(v1), Self::U32(v2)) => v1.mul(*v2).into(),
+            (Self::U64(v1), Self::U64(v2)) => v1.mul(*v2).into(),
+            (lhs, rhs) => panic!("Mismatched types for mul {:?}, {:?}", lhs, rhs),
+        }
+    }
+
+    pub fn div(&self, rhs: &RuntimeScalarValue) -> RuntimeScalarValue {
+        match (self, rhs) {
+            (Self::I8(v1), Self::I8(v2)) => v1.div(*v2).into(),
+            (Self::I16(v1), Self::I16(v2)) => v1.div(*v2).into(),
+            (Self::I32(v1), Self::I32(v2)) => v1.div(*v2).into(),
+            (Self::I64(v1), Self::I64(v2)) => v1.div(*v2).into(),
+            (Self::U8(v1), Self::U8(v2)) => v1.div(*v2).into(),
+            (Self::U16(v1), Self::U16(v2)) => v1.div(*v2).into(),
+            (Self::U32(v1), Self::U32(v2)) => v1.div(*v2).into(),
+            (Self::U64(v1), Self::U64(v2)) => v1.div(*v2).into(),
+            (lhs, rhs) => panic!("Mismatched types for div {:?}, {:?}", lhs, rhs),
+        }
+    }
+
+    pub fn rem(&self, rhs: &RuntimeScalarValue) -> RuntimeScalarValue {
+        match (self, rhs) {
+            (Self::I8(v1), Self::I8(v2)) => (v1 % v2).into(),
+            (Self::I16(v1), Self::I16(v2)) => (v1 % v2).into(),
+            (Self::I32(v1), Self::I32(v2)) => (v1 % v2).into(),
+            (Self::I64(v1), Self::I64(v2)) => (v1 % v2).into(),
+            (Self::U8(v1), Self::U8(v2)) => (v1 % v2).into(),
+            (Self::U16(v1), Self::U16(v2)) => (v1 % v2).into(),
+            (Self::U32(v1), Self::U32(v2)) => (v1 % v2).into(),
+            (Self::U64(v1), Self::U64(v2)) => (v1 % v2).into(),
+            (lhs, rhs) => panic!("Mismatched types for div {:?}, {:?}", lhs, rhs),
+        }
+    }
+
+    pub fn modulus(&self, rhs: &RuntimeScalarValue) -> RuntimeScalarValue {
+        match (self, rhs) {
+            (Self::I8(v1), Self::I8(v2)) => v1.rem_euclid(v2).into(),
+            (Self::I16(v1), Self::I16(v2)) => v1.rem_euclid(v2).into(),
+            (Self::I32(v1), Self::I32(v2)) => v1.rem_euclid(v2).into(),
+            (Self::I64(v1), Self::I64(v2)) => v1.rem_euclid(v2).into(),
+            (Self::U8(v1), Self::U8(v2)) => v1.rem_euclid(v2).into(),
+            (Self::U16(v1), Self::U16(v2)) => v1.rem_euclid(v2).into(),
+            (Self::U32(v1), Self::U32(v2)) => v1.rem_euclid(v2).into(),
+            (Self::U64(v1), Self::U64(v2)) => v1.rem_euclid(v2).into(),
+            (lhs, rhs) => panic!("Mismatched types for div {:?}, {:?}", lhs, rhs),
+        }
+    }
+
+    pub fn and(&self, rhs: &RuntimeScalarValue) -> RuntimeScalarValue {
+        match (self, rhs) {
+            (Self::Bool(v1), Self::Bool(v2)) => (*v1 && *v2).into(),
+            (lhs, rhs) => panic!("Mismatched types for and {:?}, {:?}", lhs, rhs),
+        }
+    }
+    pub fn or(&self, rhs: &RuntimeScalarValue) -> RuntimeScalarValue {
+        match (self, rhs) {
+            (Self::Bool(v1), Self::Bool(v2)) => (*v1 || *v2).into(),
+            (lhs, rhs) => panic!("Mismatched types for or {:?}, {:?}", lhs, rhs),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -201,6 +304,78 @@ impl RuntimeValue {
                     .join(",")
             )
             .to_string(),
+        }
+    }
+
+    pub fn modify_inner(&self, mut offsets: Vec<usize>, value: RuntimeValue) -> RuntimeValue {
+        if offsets.is_empty() {
+            return value;
+        }
+        let offset = offsets.remove(0);
+        match self {
+            RuntimeValue::Vec { lenght, contents } => {
+                let mut contents = contents.clone();
+                let val: RuntimeValue = contents[offset].clone().into();
+                contents[offset] = val.modify_inner(offsets, value).try_into().unwrap();
+                RuntimeValue::Vec {
+                    lenght: *lenght,
+                    contents,
+                }
+            }
+
+            RuntimeValue::Struct { members } => {
+                let mut members = members.clone();
+                let val = members[offset].clone();
+                members[offset] = val.modify_inner(offsets, value);
+                RuntimeValue::Struct { members }
+            }
+            _ => panic!(),
+        }
+    }
+
+    pub fn read_inner(&self, mut offsets: Vec<usize>) -> RuntimeValue {
+        if offsets.is_empty() {
+            return self.clone();
+        }
+        let offset = offsets.remove(0);
+        match self {
+            RuntimeValue::Vec {
+                lenght: _,
+                contents,
+            } => Into::<RuntimeValue>::into(contents[offset].clone()).read_inner(offsets),
+            RuntimeValue::Struct { members } => members[offset].clone().read_inner(offsets),
+            _ => panic!(),
+        }
+    }
+
+    pub fn map_scalars(
+        &self,
+        rhs: &RuntimeValue,
+        f: impl Fn(&RuntimeScalarValue, &RuntimeScalarValue) -> RuntimeScalarValue,
+    ) -> RuntimeValue {
+        match (self, rhs) {
+            (
+                Self::Vec {
+                    lenght: _,
+                    contents: op1,
+                },
+                Self::Vec {
+                    lenght: _,
+                    contents: op2,
+                },
+            ) => {
+                let contents = op1
+                    .iter()
+                    .zip(op2.iter())
+                    .map(|(v1, v2)| f(v1, v2))
+                    .collect::<Vec<RuntimeScalarValue>>();
+                RuntimeValue::Vec {
+                    lenght: contents.len(),
+                    contents,
+                }
+            }
+            (Self::Scalar(op1), Self::Scalar(op2)) => f(op1, op2).into(),
+            (lhs, rhs) => panic!("Cannot map scalar for types: {:?}, {:?}", lhs, rhs),
         }
     }
 }
